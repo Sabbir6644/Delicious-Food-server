@@ -150,6 +150,20 @@ app.post('/order', async (req, res) => {
         res.status(500).send({ error: 'Internal server error' });
       }
     });
+    // top selling food
+    app.get('/topSellingFood', async (req, res) => {
+      try {
+        const topSellingFood = await foodCollection.find()
+          .sort({ totalSell: -1 }) 
+          .limit(6) 
+          .toArray();
+    
+        res.send(topSellingFood);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
     
     
     // order booking
