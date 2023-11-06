@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 
 //middleware
 app.use(cors({
-  origin: ['https://calm-narwhal-02fbf7.netlify.app', 'http://localhost:5173'],
+  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app', 'http://localhost:5173', 'http://localhost:4173'],
   credentials: true
 }));
 // customs middleware
@@ -51,6 +51,7 @@ async function run() {
     // await client.connect();
 
     const foodCollection = client.db("foods").collection("allFood");
+    const orderCollection = client.db("foods").collection("order");
     const bookingCollection = client.db("carDoctor").collection("booking");
     //  Auth related API
     app.post('/jwt', async (req, res) => {
@@ -81,18 +82,76 @@ async function run() {
     })
 
     // Pagination
+// store order details
+app.post('/order', async (req, res) => {
+  const order = req.body
+  const result = await orderCollection.insertOne(order);
+  res.send(result)
+});
 
 
-
-    app.get('/services/:id', async (req, res) => {
+    app.get('/singleFood/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
-      const options = {
-        projection: { title: 1, img: 1, service_id: 1, price: 1, },
-      };
-      const result = await servicesCollection.findOne(query, options);
+      const result = await foodCollection.findOne(query);
       res.send(result)
     })
+    // new order
+    app.post('/createOrder', async (req, res) => {
+      const orderData = req.body;    
+      try {
+        const query = { _id: new ObjectId(orderData.id) }
+        // Find the product in the products collection
+        const food = await foodCollection.findOne(query);
+    
+        if (!food) {
+          return res.status(404).send({ error: 'Product not found' });
+        }
+        if(food?.made_by_email===orderData?.buyerEmail) {
+          return res.send({ error: 'You have added this product, so you can not buy this item' });
+        }
+        // Check if there is enough stock
+        if (food.quantity < orderData.quantity) {
+          return res.status(400).send({ error: 'Not enough stock available' });
+        }   
+        // Calculate the new total sell value
+        const newTotalSell = food.totalSell ? food.totalSell + orderData.quantity : orderData.quantity;
+    
+        // Create a new order
+        const order = {
+          foodName: orderData?.foodName,
+          quantity: orderData?.quantity,
+          buyerName: orderData?.buyerName,
+          price: orderData?.price,
+          buyerEmail: orderData?.buyerEmail,
+          buyingDate: orderData?.buyingDate,
+          food_image: orderData?.food_image,
+        };
+    
+        // Save the order to the orders collection
+        const result = await orderCollection.insertOne(order);
+        console.log(result);
+        if (result.acknowledged) {
+          // Update the product quantity and total sell
+          await foodCollection.updateOne(
+            { _id: new ObjectId(orderData.id) },
+            {
+              $inc: { quantity: -orderData.quantity },
+              $set: { totalSell: newTotalSell }
+            }
+          );
+    
+          res.send({ message: 'Order created successfully' });
+        } else {
+          res.status(500).send({ error: 'Failed to create order' });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Internal server error' });
+      }
+    });
+    
+    
     // order booking
     app.post('/booking', async (req, res) => {
       const order = req.body
