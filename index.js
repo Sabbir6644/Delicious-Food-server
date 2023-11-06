@@ -89,7 +89,19 @@ app.post('/order', async (req, res) => {
   res.send(result)
 });
 
+// food get by name
+app.get('/foods', async (req, res) => {
+  let query = {};
+  if (req.query?.food_name) {
+    query = { food_name: req.query.food_name }
+  }
+  const results = await foodCollection.find(query).toArray(); 
+  console.log(results);
+  res.send(results);
+});
 
+
+    // single food by id
     app.get('/singleFood/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
@@ -107,7 +119,7 @@ app.post('/order', async (req, res) => {
         if (!food) {
           return res.status(404).send({ error: 'Product not found' });
         }
-        if(food?.made_by_email===orderData?.buyerEmail) {
+        if(food?.author_email===orderData?.buyerEmail) {
           return res.send({ error: 'You have added this product, so you can not buy this item' });
         }
         // Check if there is enough stock
@@ -166,12 +178,13 @@ app.post('/order', async (req, res) => {
     });
     
     
-    // order booking
-    app.post('/booking', async (req, res) => {
-      const order = req.body
-      const result = await bookingCollection.insertOne(order);
+    // food add by user
+    app.post('/add/food', async (req, res) => {
+      const addItem = req.body
+      const result = await foodCollection.insertOne(addItem);
       res.send(result)
     });
+    
     app.get('/booking', verifyToken, async (req, res) => {
       // console.log(req.query.email);
       // console.log('user in valid token', req.user);
