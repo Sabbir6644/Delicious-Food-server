@@ -16,11 +16,11 @@ app.use(cors({
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
   if (!token) {
-    return res.status(401).send({ message: 'not authorized' })
+    return res.status(401).send({ message: 'Not authorized' })
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      return res.status(401).send({ message: 'not authorized' })
+      return res.status(401).send({ message: 'Not authorized' })
     }
     req.user = decoded;
     next();
@@ -52,7 +52,7 @@ async function run() {
 
     const foodCollection = client.db("foods").collection("allFood");
     const orderCollection = client.db("foods").collection("order");
-    const bookingCollection = client.db("carDoctor").collection("booking");
+    const userCollection = client.db("foods").collection("user");
     //  Auth related API
     app.post('/jwt', async (req, res) => {
       const user = req.body;
@@ -102,10 +102,13 @@ app.get('/foods', async (req, res) => {
   // console.log(results);
   res.send(results);
 });
-app.get('/food/order', async (req, res) => {
+app.get('/food/order', verifyToken, async (req, res) => {
   let query = {};
   if (req.query?.email) {
     query = { buyerEmail: req.query.email }
+  }
+  if (req.query.email !== req.user.email) {
+    return res.status(403).send({ message: 'forbidden access' })
   }
   const results = await orderCollection.find(query).toArray(); 
   // console.log(results);
@@ -225,27 +228,22 @@ app.get('/food/order', async (req, res) => {
       res.send(result)
     });
     
-    app.get('/booking', verifyToken, async (req, res) => {
-      // console.log(req.query.email);
-      // console.log('user in valid token', req.user);
-      let query = {};
-      if (req.query?.email) {
-        query = { email: req.query.email }
-      }
-      if (req.query.email !== req.user.email) {
-        return res.status(403).send({ message: 'forbidden access' })
-      }
-      const result = await bookingCollection.find(query).toArray();
-      res.send(result);
-    })
+  
     // Order cancle
-    app.delete('/booking/:id', async (req, res) => {
+    app.delete('/order/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await bookingCollection.deleteOne(query);
+      const result = await orderCollection.deleteOne(query);
+      console.log(query, result);
       res.send(result)
-
     })
+    // store register user information
+    app.post('/regigter', async (req, res) => {
+      const user = req.body
+      const result = await userCollection.insertOne(user);
+      console.log(user, result);
+      res.send(result)
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
