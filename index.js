@@ -95,8 +95,11 @@ app.get('/foods', async (req, res) => {
   if (req.query?.food_name) {
     query = { food_name: req.query.food_name }
   }
+  if (req.query?.email) {
+    query = { author_email: req.query.email }
+  }
   const results = await foodCollection.find(query).toArray(); 
-  console.log(results);
+  // console.log(results);
   res.send(results);
 });
 
