@@ -102,6 +102,15 @@ app.get('/foods', async (req, res) => {
   // console.log(results);
   res.send(results);
 });
+app.get('/food/order', async (req, res) => {
+  let query = {};
+  if (req.query?.email) {
+    query = { buyerEmail: req.query.email }
+  }
+  const results = await orderCollection.find(query).toArray(); 
+  // console.log(results);
+  res.send(results);
+});
 
 
     // single food by id
@@ -165,6 +174,34 @@ app.get('/foods', async (req, res) => {
         res.status(500).send({ error: 'Internal server error' });
       }
     });
+// Update Food
+
+  app.put('/food/:id', async(req, res)=>{
+    const id = req.params.id;
+    const food = req.body;
+    // console.log(product);
+    const filter = {_id: new ObjectId(id)}
+    const options = { upsert: true }
+    const updatedFood = {
+    //  { food_name, quantity, made_by, price, author_email, food_origin, food_category, description, food_image }
+      $set: {
+        food_name: food.food_name,
+        quantity: food.quantity,
+        made_by: food.made_by,
+        author_email: food.author_email,
+        price: food.price,
+        food_origin: food.food_origin,
+        food_category: food.food_category,
+        food_image: food.food_image,
+        description: food.description,
+      }
+    }
+    const result = await foodCollection.updateOne(filter, updatedFood, options);
+    res.send(result);
+        })
+
+
+
     // top selling food
     app.get('/topSellingFood', async (req, res) => {
       try {
