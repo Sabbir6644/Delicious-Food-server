@@ -203,8 +203,6 @@ app.get('/food/order', verifyToken, async (req, res) => {
     res.send(result);
         })
 
-
-
     // top selling food
     app.get('/topSellingFood', async (req, res) => {
       try {
@@ -230,7 +228,7 @@ app.get('/food/order', verifyToken, async (req, res) => {
     
   
     // Order cancle
-    app.delete('/order/:id', async (req, res) => {
+    app.delete('/order/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await orderCollection.deleteOne(query);
@@ -244,6 +242,12 @@ app.get('/food/order', verifyToken, async (req, res) => {
       console.log(user, result);
       res.send(result)
     });
+
+    // remove token after logOut
+    app.post('/logout', async(req,res)=>{
+      const user = req.body;
+      res.clearCookie('token', {maxAge:0}).send({success:true})
+    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
