@@ -246,7 +246,8 @@ app.get('/food/order', verifyToken, async (req, res) => {
     // remove token after logOut
     app.post('/logout', async(req,res)=>{
       const user = req.body;
-      res.clearCookie('token', {maxAge:0}).send({success:true})
+      console.log(user);
+      res.clearCookie('token', {maxAge: 0}).send({success:true})
     })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
