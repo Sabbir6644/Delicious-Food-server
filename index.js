@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 
 //middleware
 app.use(cors({
-  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app'],
+  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app', 'http://localhost:5173'],
   credentials: true
 }));
 // , 'http://localhost:5173'
@@ -83,38 +83,60 @@ async function run() {
     })
 
     // Pagination
-// store order details
-app.post('/order', async (req, res) => {
-  const order = req.body
-  const result = await orderCollection.insertOne(order);
-  res.send(result)
-});
+    // store order details
+    app.post('/order', async (req, res) => {
+      const order = req.body
+      const result = await orderCollection.insertOne(order);
+      res.send(result)
+    });
+    // caseInsensitive search
 
-// food get by name
-app.get('/foods', async (req, res) => {
-  let query = {};
-  if (req.query?.food_name) {
-    query = { food_name: req.query.food_name }
-  }
-  if (req.query?.email) {
-    query = { author_email: req.query.email }
-  }
-  const results = await foodCollection.find(query).toArray(); 
-  // console.log(results);
-  res.send(results);
-});
-app.get('/food/order', verifyToken, async (req, res) => {
-  let query = {};
-  if (req.query?.email) {
-    query = { buyerEmail: req.query.email }
-  }
-  if (req.query.email !== req.user.email) {
-    return res.status(403).send({ message: 'forbidden access' })
-  }
-  const results = await orderCollection.find(query).toArray(); 
-  // console.log(results);
-  res.send(results);
-});
+    app.get('/search', async (req, res) => {
+      try {
+        const searchFood = req.query.food_name;
+        const matchingFoods = await foodCollection
+          .find({
+            $or: [
+              { food_name: { $regex: searchFood, $options: 'i' } }, // Case-insensitive exact match
+              { food_name: { $regex: searchFood.replace(/\s/g, '.*') } }, // Space-insensitive exact match
+              { food_name: { $regex: `.*${searchFood}.*`, $options: 'i' } } // Near-approximate match
+            ]
+          })
+          .toArray();
+        res.send(matchingFoods);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'An error occurred while searching for food items.' });
+      }
+    });
+    
+
+
+    // food get by name
+    app.get('/foods', async (req, res) => {
+      let query = {};
+      if (req.query?.food_name) {
+        query = { food_name: req.query.food_name }
+      }
+      if (req.query?.email) {
+        query = { author_email: req.query.email }
+      }
+      const results = await foodCollection.find(query).toArray();
+      // console.log(results);
+      res.send(results);
+    });
+    app.get('/food/order', verifyToken, async (req, res) => {
+      let query = {};
+      if (req.query?.email) {
+        query = { buyerEmail: req.query.email }
+      }
+      if (req.query.email !== req.user.email) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      const results = await orderCollection.find(query).toArray();
+      // console.log(results);
+      res.send(results);
+    });
 
 
     // single food by id
@@ -126,25 +148,25 @@ app.get('/food/order', verifyToken, async (req, res) => {
     })
     // new order
     app.post('/createOrder', async (req, res) => {
-      const orderData = req.body;    
+      const orderData = req.body;
       try {
         const query = { _id: new ObjectId(orderData.id) }
         // Find the product in the products collection
         const food = await foodCollection.findOne(query);
-    
+
         if (!food) {
           return res.status(404).send({ error: 'Product not found' });
         }
-        if(food?.author_email===orderData?.buyerEmail) {
+        if (food?.author_email === orderData?.buyerEmail) {
           return res.send({ error: 'You have added this product, so you can not buy this item' });
         }
         // Check if there is enough stock
         if (food.quantity < orderData.quantity) {
           return res.status(400).send({ error: 'Not enough stock available' });
-        }   
+        }
         // Calculate the new total sell value
         const newTotalSell = food.totalSell ? food.totalSell + orderData.quantity : orderData.quantity;
-    
+
         // Create a new order
         const order = {
           foodName: orderData?.foodName,
@@ -155,7 +177,7 @@ app.get('/food/order', verifyToken, async (req, res) => {
           buyingDate: orderData?.buyingDate,
           food_image: orderData?.food_image,
         };
-    
+
         // Save the order to the orders collection
         const result = await orderCollection.insertOne(order);
         console.log(result);
@@ -168,7 +190,7 @@ app.get('/food/order', verifyToken, async (req, res) => {
               $set: { totalSell: newTotalSell }
             }
           );
-    
+
           res.send({ message: 'Order created successfully' });
         } else {
           res.status(500).send({ error: 'Failed to create order' });
@@ -178,56 +200,56 @@ app.get('/food/order', verifyToken, async (req, res) => {
         res.status(500).send({ error: 'Internal server error' });
       }
     });
-// Update Food
+    // Update Food
 
-  app.put('/food/:id', async(req, res)=>{
-    const id = req.params.id;
-    const food = req.body;
-    // console.log(product);
-    const filter = {_id: new ObjectId(id)}
-    const options = { upsert: true }
-    const updatedFood = {
-    //  { food_name, quantity, made_by, price, author_email, food_origin, food_category, description, food_image }
-      $set: {
-        food_name: food.food_name,
-        quantity: food.quantity,
-        made_by: food.made_by,
-        author_email: food.author_email,
-        price: food.price,
-        food_origin: food.food_origin,
-        food_category: food.food_category,
-        food_image: food.food_image,
-        description: food.description,
+    app.put('/food/:id', async (req, res) => {
+      const id = req.params.id;
+      const food = req.body;
+      // console.log(product);
+      const filter = { _id: new ObjectId(id) }
+      const options = { upsert: true }
+      const updatedFood = {
+        //  { food_name, quantity, made_by, price, author_email, food_origin, food_category, description, food_image }
+        $set: {
+          food_name: food.food_name,
+          quantity: food.quantity,
+          made_by: food.made_by,
+          author_email: food.author_email,
+          price: food.price,
+          food_origin: food.food_origin,
+          food_category: food.food_category,
+          food_image: food.food_image,
+          description: food.description,
+        }
       }
-    }
-    const result = await foodCollection.updateOne(filter, updatedFood, options);
-    res.send(result);
-        })
+      const result = await foodCollection.updateOne(filter, updatedFood, options);
+      res.send(result);
+    })
 
     // top selling food
     app.get('/topSellingFood', async (req, res) => {
       try {
         const topSellingFood = await foodCollection.find()
-          .sort({ totalSell: -1 }) 
-          .limit(6) 
+          .sort({ totalSell: -1 })
+          .limit(6)
           .toArray();
-    
+
         res.send(topSellingFood);
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
-    
-    
+
+
     // food add by user
     app.post('/add/food', async (req, res) => {
       const addItem = req.body
       const result = await foodCollection.insertOne(addItem);
       res.send(result)
     });
-    
-  
+
+
     // Order cancle
     app.delete('/order/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
@@ -245,10 +267,10 @@ app.get('/food/order', verifyToken, async (req, res) => {
     });
 
     // remove token after logOut
-    app.post('/logout', async(req,res)=>{
+    app.post('/logout', async (req, res) => {
       const user = req.body;
       console.log(user);
-      res.clearCookie('token', {maxAge: 0}).send({success:true})
+      res.clearCookie('token', { maxAge: 0 }).send({ success: true })
     })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
