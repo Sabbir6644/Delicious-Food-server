@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 
 //middleware
 app.use(cors({
-  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app', 'http://localhost:5173'],
+  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app'],
   credentials: true
 }));
 // , 'http://localhost:5173'
