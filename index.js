@@ -9,9 +9,10 @@ const port = process.env.PORT || 5000;
 
 //middleware
 app.use(cors({
-  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app', 'http://localhost:5173'],
+  origin: ['https://cosmic-biscochitos-7aa7f1.netlify.app'],
   credentials: true
 }));
+// , 'http://localhost:5173'
 // customs middleware
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
@@ -239,7 +240,7 @@ app.get('/food/order', verifyToken, async (req, res) => {
     app.post('/regigter', async (req, res) => {
       const user = req.body
       const result = await userCollection.insertOne(user);
-      console.log(user, result);
+      // console.log(user, result);
       res.send(result)
     });
 
